@@ -56,6 +56,15 @@ class SocketPool
     @pids.clear
     @checked_out.clear
   end
+
+  def use_socket
+    socket = checkout_socket
+    begin
+      yield socket
+    ensure
+      checkin(socket)
+    end
+  end
   
   # Return a socket to the pool.
   # Allow for destroying a resetting socket if the application determines the connection is no good
@@ -71,8 +80,12 @@ class SocketPool
           warn "IOError when attempting to close socket connected to #{@host}:#{@port}: #{ex.inspect}"
         end
         sock = checkout_new_socket
+      elsif sock.closed?
+        @sockets.delete(sock)
+        @checked_out.delete(sock)
+        @pids.delete(sock)
+        sock = checkout_new_socket
       end
-
       @checked_out.delete(sock)          
       @queue.signal
     end
