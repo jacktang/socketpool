@@ -65,7 +65,11 @@ class SocketPool
         @sockets.delete(sock)
         @checked_out.delete(sock)
         @pids.delete(sock)
-        sock.close
+        begin
+          sock.close
+        rescue IOError => ex
+          warn "IOError when attempting to close socket connected to #{@host}:#{@port}: #{ex.inspect}"
+        end
         sock = checkout_new_socket
       end
 
@@ -109,6 +113,10 @@ class SocketPool
        @sockets.delete(socket)
        socket.close
        checkout_new_socket
+    elsif socket.closed?
+      @sockets.delete(socket)
+      @pids.delete(socket)
+      checkout_new_socket
     else
       @checked_out << socket
       socket
